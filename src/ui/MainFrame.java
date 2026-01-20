@@ -46,15 +46,19 @@ public class MainFrame extends JFrame {
 
     private JComponent buildToolbar() {
         JButton btnAdd = new JButton("Add");
+        JButton btnEdit = new JButton("Edit");
         JButton btnView = new JButton("View Details");
         JButton btnDelete = new JButton("Delete");
+        JButton btnToggleExpedite = new JButton("Toggle Expedite");
         JButton btnMoveLeft = new JButton("< Move");
         JButton btnMoveRight = new JButton("Move >");
         JButton btnRefresh = new JButton("Refresh");
 
         btnAdd.addActionListener(e -> onAdd());
+        btnEdit.addActionListener(e -> onEdit());
         btnView.addActionListener(e -> onView());
         btnDelete.addActionListener(e -> onDelete());
+        btnToggleExpedite.addActionListener(e -> onToggleExpedite());
         btnMoveLeft.addActionListener(e -> onMove(-1));
         btnMoveRight.addActionListener(e -> onMove(+1));
         btnRefresh.addActionListener(e -> loadCards());
@@ -63,8 +67,11 @@ public class MainFrame extends JFrame {
         tb.setFloatable(false);
 
         tb.add(btnAdd);
+        tb.add(btnEdit);
         tb.add(btnView);
         tb.add(btnDelete);
+        tb.addSeparator();
+        tb.add(btnToggleExpedite);
         tb.addSeparator();
         tb.add(btnMoveLeft);
         tb.add(btnMoveRight);
@@ -113,13 +120,13 @@ public class MainFrame extends JFrame {
     }
 
     private void configure(JList<Card> list) {
-    list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
-    list.addListSelectionListener(e -> {
-        if (!e.getValueIsAdjusting() && list.getSelectedValue() != null) {
-            enforceSingleSelection(list);
-        }
-    });
+        list.addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting() && list.getSelectedValue() != null) {
+                enforceSingleSelection(list);
+            }
+        });
     }
 
     private void addHeader(JPanel grid, GridBagConstraints c, int x, int y, String text) {
@@ -275,9 +282,54 @@ public class MainFrame extends JFrame {
             showError("Failed to move card", ex);
         }
     }
+    private void onEdit() {
+        Card selected = getSelectedCard();
+        if (selected == null) {
+            info("Select a card", "Please select a card first.");
+            return;
+        }
+
+        EditCardDialog dlg = new EditCardDialog(this, selected);
+        dlg.setVisible(true);
+
+        if (!dlg.isSaved()) return;
+
+        try {
+            cardDao.updateCard(
+                    selected.getId(),
+                    dlg.getTitleValue(),
+                    dlg.getDescriptionValue(),
+                    dlg.getStatusValue(),
+                    dlg.getDueDateValue(),
+                    dlg.getOwnerValue(),
+                    dlg.getAssigneeValue(),
+                    dlg.getExpediteValue()
+            );
+            loadCards();
+        } catch (Exception ex) {
+            showError("Failed to edit card", ex);
+        }
+    }
+
+    private void onToggleExpedite() {
+        Card selected = getSelectedCard();
+        if (selected == null) {
+            info("Select a card", "Please select a card first.");
+            return;
+        }
+
+        boolean newValue = !selected.isExpedite();
+
+        try {
+            cardDao.updateExpedite(selected.getId(), newValue);
+            loadCards();
+        } catch (Exception ex) {
+            showError("Failed to toggle expedite", ex);
+        }
+    }
+
 
     private KanbanStatus nextStatus(KanbanStatus current, int direction) {
-        // direction: -1 left, +1 right
         return switch (current) {
             case TO_DO -> (direction > 0) ? KanbanStatus.IN_PROGRESS : null;
             case IN_PROGRESS -> (direction > 0) ? KanbanStatus.DONE : KanbanStatus.TO_DO;
@@ -286,7 +338,6 @@ public class MainFrame extends JFrame {
     }
 
     private Card getSelectedCard() {
-        // Only one list will typically have a selection. We check all.
         Card c;
 
         c = expToDoList.getSelectedValue(); if (c != null) return c;
@@ -301,15 +352,14 @@ public class MainFrame extends JFrame {
     }
     
     private void enforceSingleSelection(JList<Card> active) {
-    // Clear selection in all lists except the one that triggered the event
-    if (active != expToDoList) expToDoList.clearSelection();
-    if (active != expInProgList) expInProgList.clearSelection();
-    if (active != expDoneList) expDoneList.clearSelection();
+        if (active != expToDoList) expToDoList.clearSelection();
+        if (active != expInProgList) expInProgList.clearSelection();
+        if (active != expDoneList) expDoneList.clearSelection();
 
-    if (active != regToDoList) regToDoList.clearSelection();
-    if (active != regInProgList) regInProgList.clearSelection();
-    if (active != regDoneList) regDoneList.clearSelection();
-}
+        if (active != regToDoList) regToDoList.clearSelection();
+        if (active != regInProgList) regInProgList.clearSelection();
+        if (active != regDoneList) regDoneList.clearSelection();
+    }
 
     private void info(String title, String msg) {
         JOptionPane.showMessageDialog(this, msg, title, JOptionPane.INFORMATION_MESSAGE);

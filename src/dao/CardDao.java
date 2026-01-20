@@ -100,4 +100,28 @@ public class CardDao {
             ps.executeUpdate();
         }
     }
+    public void updateCard(int id, String title, String description, KanbanStatus status,
+                       String dueDate, String owner, String assignee, boolean expedite) throws Exception {
+
+        String sql = """
+            UPDATE cards
+            SET title = ?, description = ?, status = ?, due_date = ?, owner = ?, assignee = ?, expedite = ?
+            WHERE id = ?
+            """;
+
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, title);
+            ps.setString(2, description);
+            ps.setString(3, status.name());
+            ps.setString(4, dueDate);
+            ps.setString(5, owner);
+            ps.setString(6, assignee);
+            ps.setInt(7, expedite ? 1 : 0);
+            ps.setInt(8, id);
+
+            ps.executeUpdate();
+        }
+    }
 }
