@@ -161,28 +161,33 @@ public class MainFrame extends JFrame {
     }
 
     private void loadCards() {
-        // Clear all 6 lists
-        expToDo.clear(); expInProg.clear(); expDone.clear();
-        regToDo.clear(); regInProg.clear(); regDone.clear();
+    Integer selectedId = getSelectedCardId();
 
-        try {
-            List<Card> cards = cardDao.getAllCards();
+    expToDo.clear(); expInProg.clear(); expDone.clear();
+    regToDo.clear(); regInProg.clear(); regDone.clear();
 
-            for (Card card : cards) {
-                boolean exp = card.isExpedite();
+    try {
+        List<Card> cards = cardDao.getAllCards();
 
-                if (card.getStatus() == KanbanStatus.TO_DO) {
-                    (exp ? expToDo : regToDo).addElement(card);
-                } else if (card.getStatus() == KanbanStatus.IN_PROGRESS) {
-                    (exp ? expInProg : regInProg).addElement(card);
-                } else if (card.getStatus() == KanbanStatus.DONE) {
-                    (exp ? expDone : regDone).addElement(card);
-                }
+        for (Card card : cards) {
+            boolean exp = card.isExpedite();
+
+            if (card.getStatus() == KanbanStatus.TO_DO) {
+                (exp ? expToDo : regToDo).addElement(card);
+            } else if (card.getStatus() == KanbanStatus.IN_PROGRESS) {
+                (exp ? expInProg : regInProg).addElement(card);
+            } else if (card.getStatus() == KanbanStatus.DONE) {
+                (exp ? expDone : regDone).addElement(card);
             }
+        }
+
+        reselectCardById(selectedId);
+
         } catch (Exception ex) {
             showError("Failed to load cards", ex);
         }
     }
+
 
     private void onAdd() {
         AddCardDialog dlg = new AddCardDialog(this);
@@ -359,6 +364,36 @@ public class MainFrame extends JFrame {
         if (active != regToDoList) regToDoList.clearSelection();
         if (active != regInProgList) regInProgList.clearSelection();
         if (active != regDoneList) regDoneList.clearSelection();
+    }
+    private Integer getSelectedCardId() {
+        Card c = getSelectedCard();
+        return (c == null) ? null : c.getId();
+    }
+
+    private void reselectCardById(Integer id) {
+        if (id == null) return;
+
+        if (selectInList(expToDoList, expToDo, id)) return;
+        if (selectInList(expInProgList, expInProg, id)) return;
+        if (selectInList(expDoneList, expDone, id)) return;
+
+        if (selectInList(regToDoList, regToDo, id)) return;
+        if (selectInList(regInProgList, regInProg, id)) return;
+        selectInList(regDoneList, regDone, id);
+    }
+
+    private boolean selectInList(JList<Card> list, DefaultListModel<Card> model, int id) {
+        for (int i = 0; i < model.size(); i++) {
+            Card c = model.get(i);
+            if (c.getId() == id) {
+                list.setSelectedIndex(i);
+                list.ensureIndexIsVisible(i);
+
+                enforceSingleSelection(list);
+                return true;
+            }
+        }
+        return false;
     }
 
     private void info(String title, String msg) {
