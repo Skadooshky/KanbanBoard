@@ -41,7 +41,7 @@ public class MainFrame extends JFrame {
         add(buildToolbar(), BorderLayout.NORTH);
         add(buildBoard(), BorderLayout.CENTER);
 
-        loadCards(); 
+        loadCards();
     }
 
     private JComponent buildToolbar() {
@@ -52,13 +52,12 @@ public class MainFrame extends JFrame {
         JButton btnMoveRight = new JButton("Move >");
         JButton btnRefresh = new JButton("Refresh");
 
+        btnAdd.addActionListener(e -> onAdd());
+        btnView.addActionListener(e -> onView());
+        btnDelete.addActionListener(e -> onDelete());
+        btnMoveLeft.addActionListener(e -> onMove(-1));
+        btnMoveRight.addActionListener(e -> onMove(+1));
         btnRefresh.addActionListener(e -> loadCards());
-
-        btnAdd.addActionListener(e -> info("", ""));
-        btnView.addActionListener(e -> info("", ""));
-        btnDelete.addActionListener(e -> info("", ""));
-        btnMoveLeft.addActionListener(e -> info("", ""));
-        btnMoveRight.addActionListener(e -> info("", ""));
 
         JToolBar tb = new JToolBar();
         tb.setFloatable(false);
@@ -103,7 +102,24 @@ public class MainFrame extends JFrame {
         addCell(grid, c, 2, 2, regInProgList);
         addCell(grid, c, 3, 2, regDoneList);
 
+        configureLists();
+
         return grid;
+    }
+
+    private void configureLists() {
+        configure(expToDoList); configure(expInProgList); configure(expDoneList);
+        configure(regToDoList); configure(regInProgList); configure(regDoneList);
+    }
+
+    private void configure(JList<Card> list) {
+    list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+
+    list.addListSelectionListener(e -> {
+        if (!e.getValueIsAdjusting() && list.getSelectedValue() != null) {
+            enforceSingleSelection(list);
+        }
+    });
     }
 
     private void addHeader(JPanel grid, GridBagConstraints c, int x, int y, String text) {
@@ -129,7 +145,6 @@ public class MainFrame extends JFrame {
     }
 
     private void addCell(JPanel grid, GridBagConstraints c, int x, int y, JList<Card> list) {
-        list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         JScrollPane sp = new JScrollPane(list);
         sp.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
 
@@ -139,7 +154,7 @@ public class MainFrame extends JFrame {
     }
 
     private void loadCards() {
-        
+        // Clear all 6 lists
         expToDo.clear(); expInProg.clear(); expDone.clear();
         regToDo.clear(); regInProg.clear(); regDone.clear();
 
@@ -161,6 +176,140 @@ public class MainFrame extends JFrame {
             showError("Failed to load cards", ex);
         }
     }
+
+    private void onAdd() {
+        AddCardDialog dlg = new AddCardDialog(this);
+        dlg.setVisible(true);
+
+        if (!dlg.isSaved()) return;
+
+        try {
+            cardDao.insertCard(
+                    dlg.getTitleValue(),
+                    dlg.getDescriptionValue(),
+                    dlg.getStatusValue(),
+                    dlg.getDueDateValue(),
+                    dlg.getOwnerValue(),
+                    dlg.getAssigneeValue(),
+                    dlg.getExpediteValue()
+            );
+            loadCards();
+        } catch (Exception ex) {
+            showError("Failed to add card", ex);
+        }
+    }
+
+    private void onView() {
+        Card selected = getSelectedCard();
+        if (selected == null) {
+            info("Select a card", "Please select a card first.");
+            return;
+        }
+
+        String msg = """
+                Title: %s
+                Description: %s
+                Status: %s
+                Expedite: %s
+                Due Date: %s
+                Created At: %s
+                Owner: %s
+                Assignee: %s
+                """.formatted(
+                selected.getTitle(),
+                selected.getDescription(),
+                selected.getStatus().name(),
+                selected.isExpedite() ? "YES" : "NO",
+                selected.getDueDate(),
+                selected.getCreatedAt(),
+                selected.getOwner(),
+                selected.getAssignee()
+        );
+
+        JOptionPane.showMessageDialog(this, msg, "Card Details", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private void onDelete() {
+        Card selected = getSelectedCard();
+        if (selected == null) {
+            info("Select a card", "Please select a card first.");
+            return;
+        }
+
+        int confirm = JOptionPane.showConfirmDialog(
+                this,
+                "Delete this card?\n\n" + selected.getTitle(),
+                "Confirm delete",
+                JOptionPane.YES_NO_OPTION
+        );
+
+        if (confirm != JOptionPane.YES_OPTION) return;
+
+        try {
+            cardDao.deleteCard(selected.getId());
+            loadCards();
+        } catch (Exception ex) {
+            showError("Failed to delete card", ex);
+        }
+    }
+
+    private void onMove(int direction) {
+        Card selected = getSelectedCard();
+        if (selected == null) {
+            info("Select a card", "Please select a card first.");
+            return;
+        }
+
+        KanbanStatus current = selected.getStatus();
+        KanbanStatus next = nextStatus(current, direction);
+
+        if (next == null) {
+            info("Cannot move", "This card is already at the edge.");
+            return;
+        }
+
+        try {
+            cardDao.updateStatus(selected.getId(), next);
+            loadCards();
+        } catch (Exception ex) {
+            showError("Failed to move card", ex);
+        }
+    }
+
+    private KanbanStatus nextStatus(KanbanStatus current, int direction) {
+        // direction: -1 left, +1 right
+        return switch (current) {
+            case TO_DO -> (direction > 0) ? KanbanStatus.IN_PROGRESS : null;
+            case IN_PROGRESS -> (direction > 0) ? KanbanStatus.DONE : KanbanStatus.TO_DO;
+            case DONE -> (direction > 0) ? null : KanbanStatus.IN_PROGRESS;
+        };
+    }
+
+    private Card getSelectedCard() {
+        // Only one list will typically have a selection. We check all.
+        Card c;
+
+        c = expToDoList.getSelectedValue(); if (c != null) return c;
+        c = expInProgList.getSelectedValue(); if (c != null) return c;
+        c = expDoneList.getSelectedValue(); if (c != null) return c;
+
+        c = regToDoList.getSelectedValue(); if (c != null) return c;
+        c = regInProgList.getSelectedValue(); if (c != null) return c;
+        c = regDoneList.getSelectedValue(); if (c != null) return c;
+
+        return null;
+    }
+    
+    private void enforceSingleSelection(JList<Card> active) {
+    // Clear selection in all lists except the one that triggered the event
+    if (active != expToDoList) expToDoList.clearSelection();
+    if (active != expInProgList) expInProgList.clearSelection();
+    if (active != expDoneList) expDoneList.clearSelection();
+
+    if (active != regToDoList) regToDoList.clearSelection();
+    if (active != regInProgList) regInProgList.clearSelection();
+    if (active != regDoneList) regDoneList.clearSelection();
+}
 
     private void info(String title, String msg) {
         JOptionPane.showMessageDialog(this, msg, title, JOptionPane.INFORMATION_MESSAGE);
