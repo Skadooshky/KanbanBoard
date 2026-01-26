@@ -3,7 +3,9 @@ package dao;
 import db.DBConnection;
 import model.Card;
 import model.KanbanStatus;
-
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -45,8 +47,8 @@ public class CardDao {
     public int insertCard(String title, String description, KanbanStatus status,
                           String dueDate, String owner, String assignee, boolean expedite) throws Exception {
         String sql = """
-            INSERT INTO cards (title, description, status, due_date, owner, assignee, expedite)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO cards (title, description, status, created_at, due_date, owner, assignee, expedite)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """;
 
         try (Connection conn = DBConnection.getConnection();
@@ -55,10 +57,11 @@ public class CardDao {
             ps.setString(1, title);
             ps.setString(2, description);
             ps.setString(3, status.name());
-            ps.setString(4, dueDate);
-            ps.setString(5, owner);
-            ps.setString(6, assignee);
-            ps.setInt(7, expedite ? 1 : 0);
+            ps.setString(4, nowLocalTimestamp());   
+            ps.setString(5, dueDate);
+            ps.setString(6, owner);
+            ps.setString(7, assignee);
+            ps.setInt(8, expedite ? 1 : 0);
 
             ps.executeUpdate();
 
@@ -100,12 +103,12 @@ public class CardDao {
             ps.executeUpdate();
         }
     }
+    
     public void updateCard(int id, String title, String description, KanbanStatus status,
                        String dueDate, String owner, String assignee, boolean expedite) throws Exception {
 
         String sql = """
-            UPDATE cards
-            SET title = ?, description = ?, status = ?, due_date = ?, owner = ?, assignee = ?, expedite = ?
+            UPDATE cards SET title = ?, description = ?, status = ?, created_at = ?, due_date = ?, owner = ?, assignee = ?, expedite = ?
             WHERE id = ?
             """;
 
@@ -115,13 +118,24 @@ public class CardDao {
             ps.setString(1, title);
             ps.setString(2, description);
             ps.setString(3, status.name());
-            ps.setString(4, dueDate);
-            ps.setString(5, owner);
-            ps.setString(6, assignee);
-            ps.setInt(7, expedite ? 1 : 0);
-            ps.setInt(8, id);
+            ps.setString(4, nowLocalTimestamp());
+            ps.setString(5, dueDate);
+            ps.setString(6, owner);
+            ps.setString(7, assignee);
+            ps.setInt(8, expedite ? 1 : 0);
+            ps.setInt(9, id);
 
             ps.executeUpdate();
         }
+    }
+
+    
+    private static final DateTimeFormatter SQLITE_TS =
+        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+    private String nowLocalTimestamp() {
+        return LocalDateTime
+                .now(ZoneId.systemDefault())
+                .format(SQLITE_TS);
     }
 }

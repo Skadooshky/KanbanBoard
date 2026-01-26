@@ -214,33 +214,77 @@ public class MainFrame extends JFrame {
     }
 
     private void onView() {
-        Card selected = getSelectedCard();
-        if (selected == null) {
-            info("Select a card", "Please select a card first.");
-            return;
-        }
+    Card selected = getSelectedCard();
+    if (selected == null) {
+        info("Select a card", "Please select a card first.");
+        return;
+    }
 
-        String msg = """
-                Title: %s
-                Description: %s
-                Status: %s
-                Expedite: %s
-                Due Date: %s
-                Created At: %s
-                Owner: %s
-                Assignee: %s
-                """.formatted(
-                selected.getTitle(),
-                selected.getDescription(),
-                selected.getStatus().name(),
-                selected.isExpedite() ? "YES" : "NO",
-                selected.getDueDate(),
-                selected.getCreatedAt(),
-                selected.getOwner(),
-                selected.getAssignee()
-        );
+        JDialog dialog = new JDialog(this, "Card Details", true);
+        dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+        dialog.setResizable(false); // ✅ fixed size
 
-        JOptionPane.showMessageDialog(this, msg, "Card Details", JOptionPane.INFORMATION_MESSAGE);
+        JPanel panel = new JPanel(new GridBagLayout());
+        GridBagConstraints c = new GridBagConstraints();
+        c.insets = new Insets(6, 6, 6, 6);
+        c.anchor = GridBagConstraints.NORTHWEST;
+        c.fill = GridBagConstraints.HORIZONTAL;
+
+        int row = 0;
+
+        addDetailRow(panel, c, row++, "Title:", selected.getTitle());
+        addDetailRow(panel, c, row++, "Status:", selected.getStatus().name());
+        addDetailRow(panel, c, row++, "Expedite:", selected.isExpedite() ? "Yes" : "No");
+        addDetailRow(panel, c, row++, "Due Date:", selected.getDueDate());
+        addDetailRow(panel, c, row++, "Created At:", selected.getCreatedAt());
+        addDetailRow(panel, c, row++, "Owner:", selected.getOwner());
+        addDetailRow(panel, c, row++, "Assignee:", selected.getAssignee());
+
+        // ---- Description (wrapped + scrollable) ----
+        JTextArea txtDescription = new JTextArea(selected.getDescription());
+        txtDescription.setLineWrap(true);
+        txtDescription.setWrapStyleWord(true);
+        txtDescription.setEditable(false);
+        txtDescription.setRows(5);
+
+        JScrollPane descScroll = new JScrollPane(txtDescription);
+        descScroll.setPreferredSize(new Dimension(360, 100)); // ✅ fixed width
+        descScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        descScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+
+        c.gridx = 0;
+        c.gridy = row;
+        c.gridwidth = 1;
+        panel.add(new JLabel("Description:"), c);
+
+        c.gridx = 1;
+        c.gridwidth = 1;
+        panel.add(descScroll, c);
+
+        JButton btnClose = new JButton("Close");
+        btnClose.addActionListener(e -> dialog.dispose());
+
+        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttons.add(btnClose);
+
+        dialog.getContentPane().setLayout(new BorderLayout());
+        dialog.getContentPane().add(panel, BorderLayout.CENTER);
+        dialog.getContentPane().add(buttons, BorderLayout.SOUTH);
+
+        dialog.pack();
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+    }
+
+    private void addDetailRow(JPanel panel, GridBagConstraints c, int row, String label, String value) {
+        c.gridx = 0;
+        c.gridy = row;
+        c.weightx = 0;
+        panel.add(new JLabel(label), c);
+
+        c.gridx = 1;
+        c.weightx = 1;
+        panel.add(new JLabel(value), c);
     }
 
     private void onDelete() {
