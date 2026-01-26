@@ -119,8 +119,10 @@ public class MainFrame extends JFrame {
         configure(regToDoList); configure(regInProgList); configure(regDoneList);
     }
 
-    private void configure(JList<Card> list) {
+   private void configure(JList<Card> list) {
         list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+
+        list.setCellRenderer(new CardTitleRenderer());
 
         list.addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting() && list.getSelectedValue() != null) {
