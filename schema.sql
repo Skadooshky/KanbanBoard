@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS cards (
     title TEXT NOT NULL,
     description TEXT,
     status TEXT NOT NULL,                          
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    created_at TEXT NOT NULL,
     due_date TEXT NOT NULL,                        
     owner TEXT NOT NULL,
     assignee TEXT NOT NULL,
